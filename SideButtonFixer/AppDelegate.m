@@ -43,6 +43,50 @@ static CGEventRef SBFMouseCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     BOOL mouseDown = [[NSUserDefaults standardUserDefaults] boolForKey:@"SBFMouseDown"];
     BOOL swapButtons = [[NSUserDefaults standardUserDefaults] boolForKey:@"SBFSwapButtons"];
     
+    // todo: change the int64_t number above to use this CGMouseButton
+    CGMouseButton buttonPressed = (CGMouseButton)CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber);
+    
+    @autoreleasepool {
+        // Apps to swap buttons on
+        NSArray *buttonSwapApps = @[@"Safari", @"Xcode"];
+        
+        // Get the frontmost (active) application
+        NSRunningApplication *activeApp = [[NSWorkspace sharedWorkspace] frontmostApplication];
+        
+        // Get the application name
+        NSString *appName = [activeApp localizedName];
+        
+        // Print the app name
+        NSLog(@"Current active application: %@", appName);
+        
+        if (![buttonSwapApps containsObject:appName]) {
+            NSLog(@"Not swapping buttons!");
+            return event;
+        }
+        
+        if (buttonPressed == kCGMouseButtonCenter) { // kCGMouseButtonCenter corresponds to the middle mouse button
+            NSLog(@"Middle mouse button event detected. Converting to cmd+left click.");
+                        
+            // Get the original mouse location
+            CGPoint mouseLocation = CGEventGetLocation(event);
+
+            // Create a new mouse event for a left click with the command key pressed
+            CGEventRef newEvent = CGEventCreateMouseEvent(
+                NULL,
+                type == kCGEventOtherMouseDown ? kCGEventLeftMouseDown : kCGEventLeftMouseUp,
+                mouseLocation,
+                kCGMouseButtonLeft
+            );
+
+            // Add the command key modifier
+            CGEventSetFlags(newEvent, kCGEventFlagMaskCommand);
+            
+            // Release the original event and return the new event
+//            CFRelease(event);
+            return newEvent;
+        }
+    }
+    
     if (number == (swapButtons ? 4 : 3)) {
         if ((mouseDown && down) || (!mouseDown && !down)) {
             SBFFakeSwipe(kTLInfoSwipeLeft);
